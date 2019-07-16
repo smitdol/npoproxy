@@ -12,6 +12,10 @@ buffer_size = 2048
 delay = 0.0001
 proxy_ip_port = '192.168.1.196:9090'
 
+def dbgprint(s):
+    print s
+    sys.stdout.flush()
+
 class Forward:
     def __init__(self):
         self.forward = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,7 +39,6 @@ class TheServer:
         self.server.bind((host, port))
         self.server.listen(200)
         self.host = 'ipv4.api.nos.nl'
-        #self.location = 'GET /resolve.php/livestream?url=/live/npo/tvlive/npo1/npo1.isml/.m3u8'
         self.location = ''
         self.contentlength = 0
     def main_loop(self):
@@ -55,11 +58,10 @@ class TheServer:
                 else:
                     self.on_close()
                     break
-
     def on_accept(self):
         clientsock, clientaddr = self.server.accept()
         data=clientsock.recv(buffer_size)
-        print '>clientdata>'+data
+        dbgprint('>clientdata>'+data)
 
         lines = data.splitlines()
         for line in lines:
@@ -69,22 +71,25 @@ class TheServer:
         data=data.replace(proxy_ip_port,self.host)
         data=data.replace('&h057='+self.host,'')
         data=data.replace('&amp;h057='+self.host,'')
-        print '>modclientdata>'+data
+        dbgprint('>modclientdata>'+data)
+	dbgprint('self.host:'+self.host)
+        self.referer=self.host+data.splitlines()[0].split()[1]
+        dbgprint('self.referer:'+self.referer)
 
         forward = Forward().start(self.host, 80, data)
         if forward:
-            print clientaddr, "has connected"
+            print clientaddr, "has connected" 
             self.input_list.append(clientsock)
             self.input_list.append(forward)
             self.channel[clientsock] = forward
             self.channel[forward] = clientsock
         else:
-            print "Can't establish connection with remote server.",
-            print "Closing connection with client side", clientaddr
+            dbgprint("Can't establish connection with remote server.",)
+            dbgprint("Closing connection with client side", clientaddr)
             clientsock.close()
 
     def on_close(self):
-        print "on_close"
+        dbgprint("on_close")
         #remove objects from input_list
         self.input_list.remove(self.s)
         self.input_list.remove(self.channel[self.s])
@@ -99,7 +104,7 @@ class TheServer:
 
     def on_recv(self):
         data = self.serverdata
-        print '<recv<'+data
+        dbgprint('<recv<'+data)
         lines = data.splitlines()
         loc = ''
         variants = []
@@ -120,13 +125,16 @@ class TheServer:
                 else:
                     loc = modlocation+'?h057='+self.host
             if newVariant:
+		dbgprint('stream: '+line)
                 streams.append(line)
-                newvariant = False
+                newVariant = False
             if line.upper().startswith('#EXT-X-STREAM-INF:') and 'RESOLUTION' in line:
+		dbgprint('variant: '+line)
                 variants.append(line)
                 newVariant = True #next line is stream
             if line.startswith('Content-Length:'):
                 self.contentlength = int(line.split()[1])
+		dbgprint('contentlength: '+line.split()[1])
         if len(variants) == 0:
             data=data.replace(self.host,proxy_ip_port)
             data=data.replace(modlocation, loc)
@@ -139,7 +147,7 @@ class TheServer:
                 tmp=variant.split(':')[1]
                 namevaluepairs=tmp.split(',')
                 for key in namevaluepairs:
-                    if key.startswith('AVERAGE-BANDWIDTH='):
+                    if key.startswith('AVERAGE-BANDWIDTH=') or key.startswith('BANDWIDTH='):
                         avgbwd = int(key.split('=')[1])
                         if avgbwd < 1999000 and avgbwd > target:
                             target = avgbwd
@@ -156,8 +164,14 @@ class TheServer:
                     index = index + 1
                     if str(target) in line:
                         modlines.append(line)
-                        modlines.append(self.location.replace('.m3u8',lines[index])) # add full path
-                        skiplines = 1
+                        if (self.location==''):
+                            pos=self.referer.rfind('/')+1
+                            modlines.append('http://'+self.referer[0:pos]+lines[index]) # add full path
+                            skiplines = 1
+			else:
+                            pos=self.location.rfind('/')+1
+                            modlines.append(self.location[0:pos]+lines[index]) # add full path
+                            skiplines = 1
                         continue
                     else:
                         skiplines = 1 #skip this line (i.e. do not append) and skip next line
@@ -169,7 +183,7 @@ class TheServer:
             while datalength <= self.contentlength:
                 data = data + ' '
                 datalength = datalength + 1
-        print '<modified received data to client<\n'+data
+        dbgprint('<modified received data to client<\n'+data)
         if 'BANDWIDTH=' in data:
             self.host = 'ipv4.api.nos.nl'
             self.location = ''
@@ -184,6 +198,6 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             print "Ctrl C - Stopping server"
             sys.exit(1)
-        except SocketError as e:
+        except socket.error as e:
             print "SocketError "+e.errno
 
