@@ -49,7 +49,7 @@ class TheServer:
             IP = '127.0.0.1'
         finally:
             s.close()
-        self.proxy_ip_port=IP+':9090'
+        self.proxy_ip_port=IP+':'+str(port)
     def main_loop(self):
         self.input_list.append(self.server)
         while 1:
@@ -81,7 +81,7 @@ class TheServer:
         data=data.replace('&h057='+self.host,'')
         data=data.replace('&amp;h057='+self.host,'')
         dbgprint('>modclientdata>'+data)
-	dbgprint('self.host:'+self.host)
+        dbgprint('self.host:'+self.host)
         self.referer=self.host+data.splitlines()[0].split()[1]
         dbgprint('self.referer:'+self.referer)
 
@@ -134,16 +134,16 @@ class TheServer:
                 else:
                     loc = modlocation+'?h057='+self.host
             if newVariant:
-		dbgprint('stream: '+line)
+                dbgprint('stream: '+line)
                 streams.append(line)
                 newVariant = False
             if line.upper().startswith('#EXT-X-STREAM-INF:') and 'RESOLUTION' in line:
-		dbgprint('variant: '+line)
+                dbgprint('variant: '+line)
                 variants.append(line)
                 newVariant = True #next line is stream
             if line.startswith('Content-Length:'):
                 self.contentlength = int(line.split()[1])
-		dbgprint('contentlength: '+line.split()[1])
+                dbgprint('contentlength: '+line.split()[1])
         if len(variants) == 0:
             data=data.replace(self.host,self.proxy_ip_port)
             data=data.replace(modlocation, loc)
@@ -177,7 +177,7 @@ class TheServer:
                             pos=self.referer.rfind('/')+1
                             modlines.append('http://'+self.referer[0:pos]+lines[index]) # add full path
                             skiplines = 1
-			else:
+                        else:
                             pos=self.location.rfind('/')+1
                             modlines.append(self.location[0:pos]+lines[index]) # add full path
                             skiplines = 1
