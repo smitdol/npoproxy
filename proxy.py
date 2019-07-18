@@ -10,7 +10,6 @@ from array import array
 # But when buffer get to high or delay go too down, you can broke things
 buffer_size = 2048
 delay = 0.0001
-proxy_ip_port = '192.168.1.196:9090'
 
 def dbgprint(s):
     print s
@@ -41,6 +40,16 @@ class TheServer:
         self.host = 'ipv4.api.nos.nl'
         self.location = ''
         self.contentlength = 0
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # doesn't even have to be reachable
+            s.connect(('10.255.255.255', 1))
+            IP = s.getsockname()[0]
+        except:
+            IP = '127.0.0.1'
+        finally:
+            s.close()
+        self.proxy_ip_port=IP+':9090'
     def main_loop(self):
         self.input_list.append(self.server)
         while 1:
@@ -68,7 +77,7 @@ class TheServer:
                 pos = line.find('&h057=')
                 if (pos != -1):
                      self.host = line[pos+len('&h057='):].split(' ')[0]  #host
-        data=data.replace(proxy_ip_port,self.host)
+        data=data.replace(self.proxy_ip_port,self.host)
         data=data.replace('&h057='+self.host,'')
         data=data.replace('&amp;h057='+self.host,'')
         dbgprint('>modclientdata>'+data)
@@ -119,7 +128,7 @@ class TheServer:
                 # split host and request http://host/request
                 tmp = self.location.split('/')
                 self.host = tmp[2] 
-                modlocation = self.location.replace(self.host,proxy_ip_port)
+                modlocation = self.location.replace(self.host,self.proxy_ip_port)
                 if ('?' in modlocation):
                     loc = modlocation+'&h057='+self.host
                 else:
@@ -136,7 +145,7 @@ class TheServer:
                 self.contentlength = int(line.split()[1])
 		dbgprint('contentlength: '+line.split()[1])
         if len(variants) == 0:
-            data=data.replace(self.host,proxy_ip_port)
+            data=data.replace(self.host,self.proxy_ip_port)
             data=data.replace(modlocation, loc)
             modlocation = modlocation.replace('&','&amp;')
             loc = loc.replace('&','&amp;')
