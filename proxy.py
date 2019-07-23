@@ -200,13 +200,14 @@ class TheServer:
         self.channel[self.s].send(data)
 
 if __name__ == '__main__':
+    server = TheServer('', 9091)
     while 1:
-        server = TheServer('', 9090)
         try:
             server.main_loop()
         except KeyboardInterrupt:
             print "Ctrl C - Stopping server"
             sys.exit(1)
         except socket.error as e:
-            print "SocketError "+e.errno
+            server.on_close()
+            print "SocketError "+str(e.errno)
 
